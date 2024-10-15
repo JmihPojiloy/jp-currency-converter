@@ -1,15 +1,14 @@
 @page "/"
+@using System.Globalization
 @using debug.currency.converter.Data
 @inject CurrencyService CurrencyService
 
 <h3 class="mb-4">Currency Converter</h3>
-
 <div class="container">
     <div class="row">
         <div class="col-md-6 fade-in">
             <h4>Available Currencies</h4>
             <button @onclick="RefreshCurrencies" class="btn btn-primary mb-3 btn-block">Refresh</button>
-            
             @if (isLoading)
             {
                 <div class="spinner-border text-primary" role="status">
@@ -43,7 +42,6 @@
                 </div>
             }
         </div>
-        
         <div class="col-md-6 fade-in" style="margin-top: 0;">
             <div class="form-group">
                 <label for="fromCurrency">From Currency:</label>
@@ -55,7 +53,6 @@
                     }
                 </select>
             </div>
-
             <div class="form-group">
                 <label for="toCurrency">To Currency:</label>
                 <select @bind="toCurrency" class="form-control">
@@ -66,40 +63,29 @@
                     }
                 </select>
             </div>
-
+            <div class="form-group">
+                <label>Select base currency:</label>
+                <select @bind="intermediateCurrency" class="form-control">
+                    <option value="RUB">RUB</option>
+                    <option value="KZT">KZT</option>
+                </select>
+            </div>
             <div class="form-group">
                 <label for="amount">Amount:</label>
                 <input @bind="amount" type="number" class="form-control" />
             </div>
-
-            <button @onclick="CalculateExchange" class="btn btn-primary btn-block">Calculate</button>
-
-            @if (showCrossRate)
-            {
-                <div class="form-group">
-                    <label>Select intermediate currency:</label>
-                    <select @bind="intermediateCurrency" class="form-control">
-                        <option value="">Select Currency</option>
-                        <option value="RUB">RUB</option>
-                        <option value="KZT">KZT</option>
-                    </select>
-                    <button @onclick="CalculateWithCrossRate" class="btn btn-secondary btn-block mt-2">Calculate with cross-rate</button>
-                </div>
-            }
-            
-            <button @onclick="ResetFields" class="btn btn-warning btn-block mt-3">Reset</button>
-            
             <div class="mt-3">
                 @if (calculatedResult != null)
                 {
                     <p>Exchange Result: @calculatedResult</p>
                 }
             </div>
-
             @if (errorMessage != null)
             {
                 <div class="text-danger mt-2">@errorMessage</div>
             }
+            <button @onclick="Calculate" class="btn btn-primary btn-block">Calculate</button>
+            <button @onclick="ResetFields" class="btn btn-warning btn-block mt-3">Reset</button>
         </div>
     </div>
 </div>
@@ -110,14 +96,14 @@
     private string fromCurrency;
     private string toCurrency;
     private string intermediateCurrency;
-    private decimal amount;
+    private decimal amount = 100;
     private string? calculatedResult;
     private string? errorMessage;
-    private bool showCrossRate = false;
     private bool isLoading = false;
 
     protected override async Task OnInitializedAsync()
     {
+        intermediateCurrency = "RUB";
         await RefreshCurrencies();
     }
 
@@ -129,59 +115,53 @@
         isLoading = false;
     }
 
-    private async Task CalculateExchange()
+    private async Task Calculate()
     {
+        calculatedResult = null;
+        
         if (string.IsNullOrWhiteSpace(fromCurrency) || string.IsNullOrWhiteSpace(toCurrency) || amount <= 0)
         {
             errorMessage = "Please select both currencies and enter a valid amount.";
             return;
         }
 
+        if (fromCurrency == toCurrency)
+        {
+            calculatedResult = $"{amount.ToString(CultureInfo.CurrentCulture)} {fromCurrency}";
+            return;
+        }
+
         var currency = CurrencyService.GetCurrencyRate(fromCurrency, toCurrency);
-        if (currency == null)
+        if (currency == null && !string.IsNullOrWhiteSpace(intermediateCurrency))
         {
-            errorMessage = "Currency pair not found. Please select an intermediate currency for cross-rate.";
-            showCrossRate = true;
-            return;
+            currency = CurrencyService.GetCrossCurrencies(intermediateCurrency, fromCurrency, toCurrency);
         }
 
-        errorMessage = null;
-        var sum = amount * currency.Rate;
-        var fee = (sum * currency.Fee) / 100;
-        var result = Math.Round((decimal)(sum + fee)!, 2);
-        calculatedResult = $"{result} {fromCurrency}";
+        if (currency != null)
+        {
+            await CalculateExchange(currency);
+        }
+        else
+        {
+            errorMessage = "Currency pair not found.";
+        }
     }
-
-    private async Task CalculateWithCrossRate()
+    
+    private async Task CalculateExchange(CurrencyViewModel model)
     {
-        if (string.IsNullOrWhiteSpace(intermediateCurrency))
-        {
-            errorMessage = "Please select an intermediate currency.";
-            return;
-        }
-
-        var crossRate = CurrencyService.GetCrossCurrencies(intermediateCurrency, fromCurrency, toCurrency);
-        if (crossRate == null)
-        {
-            errorMessage = "Cross rate for the selected currencies not found.";
-            return;
-        }
-
         errorMessage = null;
-        var sum = amount * crossRate.Rate;
-        var fee = (sum * crossRate.Fee) / 100;
+        var sum = amount * model.Rate;
+        var fee = (sum * model.Fee) / 100;
         var result = Math.Round((decimal)(sum + fee)!, 2);
-        calculatedResult = $"{result} {fromCurrency}";
+        calculatedResult = $"{result} {model.BCurrency}";
     }
 
     private void ResetFields()
     {
         fromCurrency = string.Empty;
         toCurrency = string.Empty;
-        amount = 0;
+        amount = 100;
         calculatedResult = null;
         errorMessage = null;
-        intermediateCurrency = string.Empty;
-        showCrossRate = false;
     }
 }
