@@ -40,17 +40,21 @@ public class CurrencyService
         return currenciesViewModels!;
     }
 
-    public CurrencyViewModel? GetCurrencyRate(string? bCurrency, string? tCurrency)
+    public CurrencyViewModel? GetCurrencyRate(string baseCurrency, string bCurrency, string tCurrency)
     {
+        var baseCurrencyRates = _currencies
+            .Where(c => c.BCurrency == baseCurrency)
+            .ToList();
+        
         decimal? rate = 0;
-        var currency = _currencies
+        var currency = baseCurrencyRates
             .FirstOrDefault(x => x.BCurrency == bCurrency && x.TCurrency == tCurrency);
         
         rate = currency?.Rate;
 
         if (currency == null)
         {
-            currency = _currencies
+            currency = baseCurrencyRates
                 .FirstOrDefault(x => x.BCurrency == tCurrency && x.TCurrency == bCurrency);
 
             if (currency != null)
@@ -59,6 +63,11 @@ public class CurrencyService
             }
         }
 
+        if (currency == null)
+        {
+            return GetCrossCurrencies(baseCurrency, bCurrency, tCurrency);
+        }
+        
         if (currency == null)
         {
             return null;
@@ -75,29 +84,37 @@ public class CurrencyService
         return model;
     }
 
-    public CurrencyViewModel GetCrossCurrencies(string cCurrency, string fCurrency,
+    private CurrencyViewModel GetCrossCurrencies(string baseCurrency, string fCurrency,
         string sCurrency)
     {
-        var firstCurrency = _currencies
-            .FirstOrDefault(x => x.BCurrency == cCurrency && x.TCurrency == fCurrency);
-        
-        var secondCurrency = _currencies
-            .FirstOrDefault(x => x.BCurrency == cCurrency && x.TCurrency == sCurrency);
+        var baseCurrencyRates = _currencies
+            .Where(c => c.BCurrency == baseCurrency)
+            .ToList();
 
-        if (firstCurrency != null && secondCurrency != null)
+        decimal rate = 0;
+        
+        var firstCurrency = baseCurrencyRates
+            .FirstOrDefault(x => x.BCurrency == baseCurrency && x.TCurrency == fCurrency);
+        
+        var secondCurrency = baseCurrencyRates
+            .FirstOrDefault(x => x.BCurrency == baseCurrency && x.TCurrency == sCurrency);
+
+        if (firstCurrency == null || secondCurrency == null)
         {
-            var firstViewModel = new CurrencyViewModel
-            {
-                BCurrency = firstCurrency.TCurrency,
-                TCurrency = secondCurrency.TCurrency,
-                Rate = secondCurrency.Rate / firstCurrency.Rate,
-                Fee = firstCurrency.Fee + secondCurrency.Fee
-            };
-            
-            return firstViewModel;
+            return null!;
         }
         
-        return null!;
+        rate = (decimal)(secondCurrency.Rate / firstCurrency.Rate)!;
+        
+        var firstViewModel = new CurrencyViewModel
+        {
+            BCurrency = firstCurrency.TCurrency,
+            TCurrency = secondCurrency.TCurrency,
+            Rate = rate,
+            Fee = firstCurrency.Fee + secondCurrency.Fee
+        };
+            
+        return firstViewModel;
     }
 
     public List<string> GetAllCurrencyNames()

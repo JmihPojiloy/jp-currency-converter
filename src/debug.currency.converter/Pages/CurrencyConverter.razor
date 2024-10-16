@@ -107,19 +107,13 @@
         await RefreshCurrencies();
     }
 
-    private async Task RefreshCurrencies()
-    {
-        isLoading = true;
-        availableCurrencies = CurrencyService.GetAllCurrencies();
-        allCurrencies = CurrencyService.GetAllCurrencyNames();
-        isLoading = false;
-    }
-
     private async Task Calculate()
     {
         calculatedResult = null;
         
-        if (string.IsNullOrWhiteSpace(fromCurrency) || string.IsNullOrWhiteSpace(toCurrency) || amount <= 0)
+        if (string.IsNullOrWhiteSpace(fromCurrency) ||
+            string.IsNullOrWhiteSpace(toCurrency) || 
+            amount <= 0)
         {
             errorMessage = "Please select both currencies and enter a valid amount.";
             return;
@@ -131,11 +125,7 @@
             return;
         }
 
-        var currency = CurrencyService.GetCurrencyRate(fromCurrency, toCurrency);
-        if (currency == null && !string.IsNullOrWhiteSpace(intermediateCurrency))
-        {
-            currency = CurrencyService.GetCrossCurrencies(intermediateCurrency, fromCurrency, toCurrency);
-        }
+        var currency = CurrencyService.GetCurrencyRate(intermediateCurrency, fromCurrency, toCurrency);
 
         if (currency != null)
         {
@@ -146,6 +136,14 @@
             errorMessage = "Currency pair not found.";
         }
     }
+
+    private async Task RefreshCurrencies()
+    {
+        isLoading = true;
+        availableCurrencies = CurrencyService.GetAllCurrencies();
+        allCurrencies = CurrencyService.GetAllCurrencyNames();
+        isLoading = false;
+    }
     
     private async Task CalculateExchange(CurrencyViewModel model)
     {
@@ -153,7 +151,7 @@
         var sum = amount * model.Rate;
         var fee = (sum * model.Fee) / 100;
         var result = Math.Round((decimal)(sum + fee)!, 2);
-        calculatedResult = $"{result} {model.BCurrency}";
+        calculatedResult = $"{result} {fromCurrency}";
     }
 
     private void ResetFields()
