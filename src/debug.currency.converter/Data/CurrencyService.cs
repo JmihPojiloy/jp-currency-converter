@@ -47,10 +47,12 @@ public class CurrencyService
             .ToList();
         
         decimal? rate = 0;
+        decimal? fee = 0;
         var currency = baseCurrencyRates
             .FirstOrDefault(x => x.BCurrency == bCurrency && x.TCurrency == tCurrency);
         
         rate = currency?.Rate;
+        fee = currency?.Fee;
 
         if (currency == null)
         {
@@ -60,6 +62,7 @@ public class CurrencyService
             if (currency != null)
             {
                 rate = 1 / currency?.Rate;
+                fee = currency?.Fee;
             }
         }
 
@@ -78,7 +81,7 @@ public class CurrencyService
             BCurrency = currency.BCurrency,
             TCurrency = currency.TCurrency,
             Rate = rate,
-            Fee = currency.Fee
+            Fee = fee
         };
 
         return model;
@@ -106,7 +109,7 @@ public class CurrencyService
         
         rate = (decimal)(secondCurrency.Rate / firstCurrency.Rate)!;
         
-        var firstViewModel = new CurrencyViewModel
+        var crossViewModel = new CurrencyViewModel
         {
             BCurrency = firstCurrency.TCurrency,
             TCurrency = secondCurrency.TCurrency,
@@ -114,7 +117,7 @@ public class CurrencyService
             Fee = firstCurrency.Fee + secondCurrency.Fee
         };
             
-        return firstViewModel;
+        return crossViewModel;
     }
 
     public List<string> GetAllCurrencyNames()

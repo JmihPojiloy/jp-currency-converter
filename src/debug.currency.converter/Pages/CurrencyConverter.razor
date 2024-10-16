@@ -65,7 +65,7 @@
             </div>
             <div class="form-group">
                 <label>Select base currency:</label>
-                <select @bind="intermediateCurrency" class="form-control">
+                <select @bind="baseCurrency" class="form-control">
                     <option value="RUB">RUB</option>
                     <option value="KZT">KZT</option>
                 </select>
@@ -95,7 +95,7 @@
     private List<string> allCurrencies = new();
     private string fromCurrency;
     private string toCurrency;
-    private string intermediateCurrency;
+    private string baseCurrency;
     private decimal amount = 100;
     private string? calculatedResult;
     private string? errorMessage;
@@ -103,7 +103,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        intermediateCurrency = "RUB";
+        baseCurrency = "RUB";
         await RefreshCurrencies();
     }
 
@@ -125,7 +125,7 @@
             return;
         }
 
-        var currency = CurrencyService.GetCurrencyRate(intermediateCurrency, fromCurrency, toCurrency);
+        var currency = CurrencyService.GetCurrencyRate(baseCurrency, fromCurrency, toCurrency);
 
         if (currency != null)
         {
@@ -133,7 +133,7 @@
         }
         else
         {
-            errorMessage = "Currency pair not found.";
+            errorMessage = $"Convertation is not possible in {baseCurrency} context.";
         }
     }
 
@@ -148,9 +148,7 @@
     private async Task CalculateExchange(CurrencyViewModel model)
     {
         errorMessage = null;
-        var sum = amount * model.Rate;
-        var fee = (sum * model.Fee) / 100;
-        var result = Math.Round((decimal)(sum + fee)!, 2);
+        var result = Math.Round((decimal)(amount * model.Rate *(1 - (model.Fee / 100)))!, 2);
         calculatedResult = $"{result} {fromCurrency}";
     }
 
